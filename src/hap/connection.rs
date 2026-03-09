@@ -14,6 +14,7 @@ pub struct LivoxConnection {
     lidar_addr: String,
     seq: u16,
     recv_buf: Vec<u8>,
+    stopped: bool,
 }
 
 impl LivoxConnection {
@@ -33,6 +34,7 @@ impl LivoxConnection {
             lidar_addr,
             seq: 0,
             recv_buf: vec![0u8; 65536],
+            stopped: false,
         };
 
         // Discovery
@@ -110,12 +112,16 @@ impl LivoxConnection {
     }
 
     pub fn stop(&mut self) {
+        if self.stopped {
+            return;
+        }
+        self.stopped = true;
         println!("  Sending standby command to LiDAR...");
         let _ = self.cmd_socket.set_nonblocking(false);
         let _ = self.cmd_socket.set_read_timeout(Some(Duration::from_secs(2)));
 
         // Send standby multiple times to make sure it arrives
-        for _ in 0..3 {
+        for _ in 0..5 {
             let seq = self.next_seq();
             let _ = self.cmd_socket.send_to(
                 &commands::set_standby(seq), &self.lidar_addr);
@@ -127,6 +133,6 @@ impl LivoxConnection {
 
 impl Drop for LivoxConnection {
     fn drop(&mut self) {
-        // Don't call stop() in Drop - it's called explicitly in main
+        self.stop();
     }
 }

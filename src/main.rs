@@ -15,9 +15,10 @@ use point::Point3D;
 
 const LIDAR_IP: &str = "192.168.14.69";
 const HOST_IP: [u8; 4] = [192, 168, 14, 82];
-const FRAME_INTERVAL: Duration = Duration::from_millis(100);
-const MAX_POINTS: usize = 50_000;
-const PRINT_INTERVAL: Duration = Duration::from_secs(2);
+const RENDER_INTERVAL: Duration = Duration::from_millis(33);  // ~30fps render
+const DETECT_INTERVAL: Duration = Duration::from_millis(500);  // detection every 500ms
+const MAX_POINTS: usize = 20_000;
+const PRINT_INTERVAL: Duration = Duration::from_secs(3);
 
 fn main() {
     let running = Arc::new(AtomicBool::new(true));
@@ -53,7 +54,8 @@ fn main() {
     let mut coord_system = CoordinateSystem::new();
     let mut raw_points: Vec<[f32; 4]> = Vec::with_capacity(MAX_POINTS);
     let mut points: Vec<Point3D> = Vec::with_capacity(MAX_POINTS);
-    let mut last_frame = Instant::now();
+    let mut last_render = Instant::now();
+    let mut last_detect = Instant::now();
     let mut last_print = Instant::now();
     let mut total_received: u64 = 0;
 
@@ -67,11 +69,16 @@ fn main() {
             raw_points.drain(..raw_points.len() - MAX_POINTS);
         }
 
-        if last_frame.elapsed() >= FRAME_INTERVAL {
-            last_frame = Instant::now();
+        // Detection runs less often (expensive)
+        if last_detect.elapsed() >= DETECT_INTERVAL {
+            last_detect = Instant::now();
 
             points.clear();
-            points.extend(raw_points.iter().map(Point3D::from_raw));
+            points.extend(
+                raw_points.iter()
+                    .map(Point3D::from_raw)
+                    .filter(Point3D::is_valid)
+            );
 
             let cones = if points.len() >= 10 {
                 detection::detect_cones(&points, &config)
@@ -84,10 +91,25 @@ fn main() {
             if last_print.elapsed() >= PRINT_INTERVAL {
                 last_print = Instant::now();
                 println!(
-                    "Points: {} | Total recv: {} | Cones: {}",
+                    "Points: {} | Total: {} | Cones: {}",
                     points.len(), total_received, cones.len()
                 );
                 coord_system.print_positions();
+            }
+        }
+
+        // Render runs at ~30fps (cheap)
+        if last_render.elapsed() >= RENDER_INTERVAL {
+            last_render = Instant::now();
+
+            // Only rebuild points vec if not recently done by detection
+            if points.is_empty() && !raw_points.is_empty() {
+                points.clear();
+                points.extend(
+                    raw_points.iter()
+                        .map(Point3D::from_raw)
+                        .filter(Point3D::is_valid)
+                );
             }
 
             viewer.sync_size();

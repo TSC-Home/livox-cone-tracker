@@ -18,6 +18,12 @@ impl Point3D {
         }
     }
 
+    /// Returns true if all coordinates are finite (not NaN, not inf).
+    #[inline]
+    pub fn is_valid(&self) -> bool {
+        self.x.is_finite() && self.y.is_finite() && self.z.is_finite()
+    }
+
     #[inline]
     pub fn distance_2d(&self, other: &Point3D) -> f32 {
         let dx = self.x - other.x;

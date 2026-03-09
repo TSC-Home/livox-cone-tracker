@@ -6,230 +6,315 @@ pub struct Cone {
     pub y: f32,
     pub z: f32,
     pub height: f32,
+    pub radius: f32,
     pub point_count: usize,
+    pub confidence: f32,
 }
 
 pub struct DetectionConfig {
-    pub cluster_radius: f32,
-    pub min_points: usize,
-    pub max_points: usize,
-    pub min_spread: f32,
-    pub max_spread: f32,
+    // Ground removal
+    pub ground_percentile: f32,
+    pub ground_margin: f32,
+
+    // Height band: only look between ground+margin and ground+max_above_ground
+    // Cones are on the ground, sensor is on car roof (~1.5m up).
+    // Anything more than ~0.6m above ground can't be a 30cm cone.
+    pub max_above_ground: f32,
+
+    // Voxel downsample
+    pub voxel_size: f32,
+
+    // DBSCAN
+    pub dbscan_eps: f32,
+    pub dbscan_min_pts: usize,
+
+    // Cone geometry (30cm cones)
+    pub cone_height_min: f32,
+    pub cone_height_max: f32,
+    pub cone_width_min: f32,
+    pub cone_width_max: f32,
     pub max_aspect_ratio: f32,
-    pub min_z_range: f32,
+    pub min_cluster_points: usize,
+    pub max_cluster_points: usize,
+
+    pub min_confidence: f32,
     pub debug: bool,
 }
 
 impl Default for DetectionConfig {
     fn default() -> Self {
         Self {
-            cluster_radius: 0.15,
-            min_points: 3,
-            max_points: 1000,
-            min_spread: 0.02,
-            max_spread: 0.40,
-            max_aspect_ratio: 4.0,
-            min_z_range: 0.03,
-            debug: true, // Print cluster stats to find cone signature
+            ground_percentile: 0.15,
+            ground_margin: 0.03,
+            max_above_ground: 0.55, // only look up to 55cm above ground
+
+            voxel_size: 0.03,
+
+            dbscan_eps: 0.12,
+            dbscan_min_pts: 3,
+
+            cone_height_min: 0.12,  // at least 12cm visible
+            cone_height_max: 0.45,  // at most 45cm
+            cone_width_min: 0.04,
+            cone_width_max: 0.30,   // tighter: 30cm max width
+            max_aspect_ratio: 2.2,  // stricter roundness
+            min_cluster_points: 4,
+            max_cluster_points: 200, // tighter: big clusters aren't cones
+
+            min_confidence: 0.50,   // higher threshold
+            debug: false,
         }
     }
 }
 
-/// Detect cones from point cloud.
-/// First pass: cluster and print ALL cluster stats (debug mode).
-/// This helps us understand what cones vs walls look like in the data.
 pub fn detect_cones(points: &[Point3D], config: &DetectionConfig) -> Vec<Cone> {
-    if points.is_empty() {
+    if points.len() < 20 {
         return Vec::new();
     }
 
-    let clusters = grid_cluster(points, config.cluster_radius);
-    let mut cones = Vec::new();
+    // Step 1: Find ground level
+    let ground_z = z_percentile(points, config.ground_percentile);
+    let z_min = ground_z + config.ground_margin;
+    let z_max = ground_z + config.max_above_ground;
+
+    // Step 2: Voxel downsample only the height band where cones can be
+    let band = voxel_downsample(points, z_min, z_max, config.voxel_size);
 
     if config.debug {
-        // Print stats for ALL clusters so we can see what cones look like
-        let mut stats_list: Vec<_> = clusters.iter()
-            .filter(|c| c.len() >= config.min_points)
-            .map(|c| (c.len(), cluster_stats(c)))
-            .collect();
-        stats_list.sort_by(|a, b| b.0.cmp(&a.0));
-
-        println!("  --- Cluster Analysis ({} clusters with >= {} pts) ---",
-            stats_list.len(), config.min_points);
-        for (i, (count, stats)) in stats_list.iter().enumerate().take(10) {
-            let label = if is_cone(stats, *count, config) { "CONE" } else { "    " };
-            println!(
-                "  [{label}] #{i}: pts={count:4}, pos=({:.2},{:.2}), \
-                spread={:.3}m, aspect={:.1}, z_range={:.3}m, radial_dev={:.0}°",
-                stats.cx, stats.cy,
-                stats.spread, stats.aspect_ratio,
-                stats.z_range, stats.radial_deviation,
-            );
-        }
+        println!(
+            "  Ground={:.3}m | band=[{:.2}..{:.2}] | {} voxels",
+            ground_z, z_min, z_max, band.len()
+        );
     }
 
+    if band.len() < config.dbscan_min_pts {
+        return Vec::new();
+    }
+
+    // Step 3: DBSCAN
+    let clusters = dbscan(&band, config.dbscan_eps, config.dbscan_min_pts);
+
+    // Step 4: Score each cluster
+    let mut cones = Vec::new();
+
     for cluster in &clusters {
-        let count = cluster.len();
-        if count < config.min_points || count > config.max_points {
+        let n = cluster.len();
+        if n < config.min_cluster_points || n > config.max_cluster_points {
             continue;
         }
 
         let stats = cluster_stats(cluster);
-        if !is_cone(&stats, count, config) {
-            continue;
+        let conf = score(stats, config);
+
+        if config.debug && n >= config.min_cluster_points {
+            let l = if conf >= config.min_confidence { "CONE" } else { "    " };
+            println!(
+                "  [{l}] pts={n:3} ({:.2},{:.2}) w={:.2} h={:.2} a={:.1} c={:.2}",
+                stats.cx, stats.cy, stats.width, stats.height, stats.aspect, conf,
+            );
         }
 
-        cones.push(Cone {
-            x: stats.cx,
-            y: stats.cy,
-            z: stats.min_z,
-            height: stats.z_range,
-            point_count: count,
-        });
+        if conf >= config.min_confidence {
+            cones.push(Cone {
+                x: stats.cx,
+                y: stats.cy,
+                z: stats.min_z,
+                height: stats.height,
+                radius: stats.width / 2.0,
+                point_count: n,
+                confidence: conf,
+            });
+        }
     }
 
     cones
 }
 
-fn is_cone(stats: &ClusterStats, _count: usize, config: &DetectionConfig) -> bool {
-    // Size check: cone is small (10-40cm spread)
-    if stats.spread < config.min_spread || stats.spread > config.max_spread {
-        return false;
-    }
+// --- Stats ---
 
-    // Shape check: not too elongated (wall would be very elongated)
-    if stats.aspect_ratio > config.max_aspect_ratio {
-        return false;
-    }
-
-    // Vertical extent: cone sticks up, ground is flat
-    if stats.z_range < config.min_z_range {
-        return false;
-    }
-
-    true
-}
-
-struct ClusterStats {
+#[derive(Clone, Copy)]
+struct Stats {
     cx: f32,
     cy: f32,
     min_z: f32,
-    z_range: f32,
-    spread: f32,
-    aspect_ratio: f32,
-    radial_deviation: f32,
+    height: f32,
+    width: f32,
+    aspect: f32,
 }
 
-fn cluster_stats(cluster: &[&Point3D]) -> ClusterStats {
+fn cluster_stats(cluster: &[Point3D]) -> Stats {
     let n = cluster.len() as f32;
-    let mut sx = 0.0f32;
-    let mut sy = 0.0f32;
-    let mut min_z = f32::MAX;
-    let mut max_z = f32::MIN;
-
+    let (mut sx, mut sy, mut minz, mut maxz) = (0.0f32, 0.0, f32::MAX, f32::MIN);
     for p in cluster {
-        sx += p.x;
-        sy += p.y;
-        min_z = min_z.min(p.z);
-        max_z = max_z.max(p.z);
+        sx += p.x; sy += p.y;
+        minz = minz.min(p.z); maxz = maxz.max(p.z);
     }
-
     let cx = sx / n;
     let cy = sy / n;
 
-    let mut cxx = 0.0f32;
-    let mut cyy = 0.0f32;
-    let mut cxy = 0.0f32;
     let mut max_r = 0.0f32;
-
+    let (mut cxx, mut cyy, mut cxy) = (0.0f32, 0.0, 0.0);
     for p in cluster {
         let dx = p.x - cx;
         let dy = p.y - cy;
-        cxx += dx * dx;
-        cyy += dy * dy;
-        cxy += dx * dy;
+        cxx += dx * dx; cyy += dy * dy; cxy += dx * dy;
         max_r = max_r.max((dx * dx + dy * dy).sqrt());
     }
-    cxx /= n;
-    cyy /= n;
-    cxy /= n;
+    cxx /= n; cyy /= n; cxy /= n;
 
-    let trace = cxx + cyy;
+    let tr = cxx + cyy;
     let det = cxx * cyy - cxy * cxy;
-    let disc = (trace * trace / 4.0 - det).max(0.0).sqrt();
-    let e1 = (trace / 2.0 + disc).max(1e-6);
-    let e2 = (trace / 2.0 - disc).max(1e-6);
+    let disc = (tr * tr / 4.0 - det).max(0.0).sqrt();
+    let e1 = (tr / 2.0 + disc).max(1e-8).sqrt();
+    let e2 = (tr / 2.0 - disc).max(1e-8).sqrt();
 
-    let major = e1.sqrt();
-    let minor = e2.sqrt();
-    let aspect_ratio = major / minor.max(1e-6);
-
-    let major_angle = if cxy.abs() > 1e-8 {
-        (e1 - cxx).atan2(cxy)
-    } else if cxx >= cyy {
-        0.0
-    } else {
-        std::f32::consts::FRAC_PI_2
-    };
-
-    let radial_angle = cy.atan2(cx);
-    let mut angle_diff = (major_angle - radial_angle).abs();
-    if angle_diff > std::f32::consts::FRAC_PI_2 {
-        angle_diff = std::f32::consts::PI - angle_diff;
-    }
-
-    ClusterStats {
-        cx, cy, min_z,
-        z_range: max_z - min_z,
-        spread: max_r,
-        aspect_ratio,
-        radial_deviation: angle_diff.to_degrees(),
+    Stats {
+        cx, cy, min_z: minz,
+        height: maxz - minz,
+        width: max_r * 2.0,
+        aspect: e1 / e2.max(1e-8),
     }
 }
 
-fn grid_cluster<'a>(points: &'a [Point3D], cell_size: f32) -> Vec<Vec<&'a Point3D>> {
-    use std::collections::HashMap;
+fn score(s: Stats, c: &DetectionConfig) -> f32 {
+    // Hard reject: outside bounds = 0
+    if s.height < c.cone_height_min || s.height > c.cone_height_max { return 0.0; }
+    if s.width < c.cone_width_min || s.width > c.cone_width_max { return 0.0; }
+    if s.aspect > c.max_aspect_ratio { return 0.0; }
 
-    let inv = 1.0 / cell_size;
-    let mut grid: HashMap<(i32, i32), Vec<&'a Point3D>> = HashMap::new();
+    let mut sc = 0.0f32;
+    let mut mx = 0.0f32;
+
+    // Height closeness to 30cm (weight 3)
+    mx += 3.0;
+    let hdev = (s.height - 0.30).abs() / 0.30;
+    sc += 3.0 * (1.0 - hdev.min(1.0));
+
+    // Width closeness to ~15cm (weight 2)
+    mx += 2.0;
+    let wdev = (s.width - 0.15).abs() / 0.15;
+    sc += 2.0 * (1.0 - wdev.min(1.0));
+
+    // Roundness (weight 2)
+    mx += 2.0;
+    sc += 2.0 * (1.0 - ((s.aspect - 1.0) / (c.max_aspect_ratio - 1.0)).min(1.0));
+
+    // H/W ratio ~2.0 (weight 2)
+    mx += 2.0;
+    if s.width > 0.01 {
+        let hw = s.height / s.width;
+        if hw > 0.8 && hw < 4.0 {
+            let dev = (hw - 2.0).abs() / 2.0;
+            sc += 2.0 * (1.0 - dev.min(1.0));
+        }
+    }
+
+    if mx > 0.0 { sc / mx } else { 0.0 }
+}
+
+// --- Voxel downsample with height band ---
+
+fn voxel_downsample(points: &[Point3D], z_min: f32, z_max: f32, voxel: f32) -> Vec<Point3D> {
+    use std::collections::HashMap;
+    let inv = 1.0 / voxel;
+    let mut grid: HashMap<(i32, i32, i32), (f32, f32, f32, f32, u32)> = HashMap::new();
 
     for p in points {
-        let gx = (p.x * inv).floor() as i32;
-        let gy = (p.y * inv).floor() as i32;
-        grid.entry((gx, gy)).or_default().push(p);
+        if p.z <= z_min || p.z > z_max { continue; }
+        let k = (
+            (p.x * inv).floor() as i32,
+            (p.y * inv).floor() as i32,
+            (p.z * inv).floor() as i32,
+        );
+        let e = grid.entry(k).or_insert((0.0, 0.0, 0.0, 0.0, 0));
+        e.0 += p.x; e.1 += p.y; e.2 += p.z; e.3 += p.reflectivity; e.4 += 1;
     }
 
-    let mut visited = std::collections::HashSet::new();
-    let mut clusters = Vec::new();
+    grid.values()
+        .map(|(sx, sy, sz, sr, n)| {
+            let n = *n as f32;
+            Point3D { x: sx / n, y: sy / n, z: sz / n, reflectivity: sr / n }
+        })
+        .collect()
+}
 
-    for key in grid.keys().copied().collect::<Vec<_>>() {
-        if visited.contains(&key) {
-            continue;
-        }
-        let mut cluster = Vec::new();
-        let mut stack = vec![key];
+// --- Z percentile ---
 
-        while let Some(k) = stack.pop() {
-            if !visited.insert(k) {
-                continue;
-            }
-            if let Some(pts) = grid.get(&k) {
-                cluster.extend_from_slice(pts);
-                for dx in -1..=1 {
-                    for dy in -1..=1 {
-                        let nb = (k.0 + dx, k.1 + dy);
-                        if !visited.contains(&nb) && grid.contains_key(&nb) {
-                            stack.push(nb);
-                        }
-                    }
-                }
-            }
-        }
+fn z_percentile(points: &[Point3D], pct: f32) -> f32 {
+    if points.is_empty() { return 0.0; }
+    let step = (points.len() / 2000).max(1);
+    let mut zs: Vec<f32> = points.iter().step_by(step)
+        .filter(|p| p.z.is_finite())
+        .map(|p| p.z)
+        .collect();
+    if zs.is_empty() { return 0.0; }
+    zs.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    zs[((zs.len() as f32 * pct) as usize).min(zs.len() - 1)]
+}
 
-        if !cluster.is_empty() {
-            clusters.push(cluster);
-        }
+// --- DBSCAN ---
+
+fn dbscan(points: &[Point3D], eps: f32, min_pts: usize) -> Vec<Vec<Point3D>> {
+    let n = points.len();
+    if n == 0 { return Vec::new(); }
+
+    let inv = 1.0 / eps;
+    let mut grid: std::collections::HashMap<(i32, i32, i32), Vec<usize>> =
+        std::collections::HashMap::new();
+    for (i, p) in points.iter().enumerate() {
+        let k = ((p.x * inv).floor() as i32, (p.y * inv).floor() as i32, (p.z * inv).floor() as i32);
+        grid.entry(k).or_default().push(i);
     }
 
+    let eps2 = eps * eps;
+    let mut labels = vec![-1i32; n];
+    let mut cid = 0i32;
+
+    for i in 0..n {
+        if labels[i] != -1 { continue; }
+        let nb = neighbors(points, i, eps2, &grid, inv);
+        if nb.len() < min_pts { labels[i] = -2; continue; }
+
+        labels[i] = cid;
+        let mut seeds = nb;
+        let mut j = 0;
+        while j < seeds.len() {
+            let q = seeds[j]; j += 1;
+            if labels[q] == -2 { labels[q] = cid; }
+            if labels[q] != -1 { continue; }
+            labels[q] = cid;
+            let qn = neighbors(points, q, eps2, &grid, inv);
+            if qn.len() >= min_pts {
+                for x in qn { if labels[x] <= -1 { seeds.push(x); } }
+            }
+        }
+        cid += 1;
+    }
+
+    let nc = cid as usize;
+    let mut clusters = vec![Vec::new(); nc];
+    for (i, &l) in labels.iter().enumerate() {
+        if l >= 0 { clusters[l as usize].push(points[i]); }
+    }
+    clusters.retain(|c| !c.is_empty());
     clusters
+}
+
+fn neighbors(
+    pts: &[Point3D], idx: usize, eps2: f32,
+    grid: &std::collections::HashMap<(i32, i32, i32), Vec<usize>>, inv: f32,
+) -> Vec<usize> {
+    let p = &pts[idx];
+    let (gx, gy, gz) = ((p.x * inv).floor() as i32, (p.y * inv).floor() as i32, (p.z * inv).floor() as i32);
+    let mut out = Vec::new();
+    for dx in -1..=1 { for dy in -1..=1 { for dz in -1..=1 {
+        if let Some(cell) = grid.get(&(gx+dx, gy+dy, gz+dz)) {
+            for &j in cell {
+                let q = &pts[j];
+                let d = (p.x-q.x)*(p.x-q.x) + (p.y-q.y)*(p.y-q.y) + (p.z-q.z)*(p.z-q.z);
+                if d <= eps2 { out.push(j); }
+            }
+        }
+    }}}
+    out
 }
