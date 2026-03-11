@@ -2,7 +2,9 @@
 
 Real-time traffic cone detection and track boundary fitting using a Livox HAP LiDAR sensor. Built for [FastTube](https://fasttube.de) Formula Student autonomous driving.
 
-![Viewer Screenshot](assets/viewer.png)
+| | |
+|:---:|:---:|
+| ![Screenshot 1](assets/img1.png) | ![Screenshot 2](assets/img2.png) |
 
 ## Features
 
