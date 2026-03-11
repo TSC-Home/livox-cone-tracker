@@ -1,5 +1,6 @@
 use crate::point::Point3D;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 pub struct Cone {
     pub x: f32,

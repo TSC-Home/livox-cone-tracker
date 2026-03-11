@@ -113,7 +113,7 @@ fn main() {
             }
 
             viewer.sync_size();
-            viewer.render(&points, &coord_system.cones);
+            viewer.render(&points, &mut coord_system);
         }
 
         std::thread::sleep(Duration::from_millis(1));
