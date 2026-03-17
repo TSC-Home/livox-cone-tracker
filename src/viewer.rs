@@ -38,6 +38,7 @@ pub struct Viewer {
     cone_toggle_pressed: bool,
     path_toggle_pressed: bool,
     virtual_toggle_pressed: bool,
+    persist_toggle_pressed: bool,
 }
 
 impl Viewer {
@@ -60,6 +61,7 @@ impl Viewer {
             cone_toggle_pressed: false,
             path_toggle_pressed: false,
             virtual_toggle_pressed: false,
+            persist_toggle_pressed: false,
         })
     }
 
@@ -126,6 +128,7 @@ impl Viewer {
         self.cone_toggle_pressed = self.window.is_key_pressed(Key::C, minifb::KeyRepeat::No);
         self.path_toggle_pressed = self.window.is_key_pressed(Key::B, minifb::KeyRepeat::No);
         self.virtual_toggle_pressed = self.window.is_key_pressed(Key::V, minifb::KeyRepeat::No);
+        self.persist_toggle_pressed = self.window.is_key_pressed(Key::G, minifb::KeyRepeat::No);
     }
 
     fn cam_vectors(&self) -> ([f32; 3], [f32; 3], [f32; 3], [f32; 3]) {
@@ -169,6 +172,9 @@ impl Viewer {
         }
         if self.virtual_toggle_pressed {
             coord.toggle_virtual();
+        }
+        if self.persist_toggle_pressed {
+            coord.toggle_persist();
         }
 
         let (w, h) = self.window.get_size();
@@ -390,6 +396,7 @@ impl Viewer {
         let c_mode = if coord.show_cones { "C ON" } else { "C OFF" };
         let b_mode = if coord.show_pathfinding { "B ON" } else { "B OFF" };
         let v_mode = if coord.use_virtual { "V ON" } else { "V OFF" };
+        let g_mode = if coord.persist_all { "G ALL" } else { "G TRACK" };
         let p_mode = if self.show_all_points { "P ALL" } else { "P CONES" };
         let t_mode = if self.show_outliers { "T SHOW OUT" } else { "T HIDE OUT" };
         self.draw_text(w, h, 4, by, p_mode, 0x444466);
@@ -397,7 +404,8 @@ impl Viewer {
         self.draw_text(w, h, 110, by, c_mode, if coord.show_cones { 0xFF6B35 } else { 0x444466 });
         self.draw_text(w, h, 130, by, b_mode, if coord.show_pathfinding { 0x4488FF } else { 0x444466 });
         self.draw_text(w, h, 150, by, v_mode, if coord.use_virtual { 0x00CCCC } else { 0x444466 });
-        self.draw_text(w, h, 174, by, "LMB ROT  SCROLL ZOOM  R RESET", 0x333355);
+        self.draw_text(w, h, 170, by, g_mode, if coord.persist_all { 0x88FF88 } else { 0x444466 });
+        self.draw_text(w, h, 200, by, "LMB ROT  SCROLL ZOOM  R RESET", 0x333355);
     }
 
     fn draw_number(&mut self, w: usize, h: usize, x: usize, y: usize, n: u8, color: u32) {

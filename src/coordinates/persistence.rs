@@ -112,6 +112,7 @@ impl CoordinateSystem {
                             on_track: false,
                             side,
                             is_virtual: true,
+                            tracked_idx: usize::MAX,
                         });
                     }
                     virtuals.push((i, batch));

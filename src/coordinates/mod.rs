@@ -22,6 +22,7 @@ pub struct CoordinateSystem {
     pub show_cones: bool,
     pub show_pathfinding: bool,
     pub use_virtual: bool,
+    pub persist_all: bool,
     prev_left: Vec<[f32; 2]>,
     prev_right: Vec<[f32; 2]>,
     prev_left_cost: f32,
@@ -43,6 +44,7 @@ impl CoordinateSystem {
             show_cones: true,
             show_pathfinding: true,
             use_virtual: true,
+            persist_all: false,
             prev_left: Vec::new(),
             prev_right: Vec::new(),
             prev_left_cost: f32::MAX,
@@ -89,6 +91,10 @@ impl CoordinateSystem {
         }
     }
 
+    pub fn toggle_persist(&mut self) {
+        self.persist_all = !self.persist_all;
+    }
+
     pub fn update(&mut self, detected: &[Cone]) {
         // --- Tracking ---
         for t in &mut self.tracked {
@@ -124,11 +130,21 @@ impl CoordinateSystem {
             }
         }
         self.tracked.extend(new_cones);
-        self.tracked.retain(|t| t.missed < MAX_MISSED);
+        let persist_all = self.persist_all;
+        self.tracked.retain(|t| {
+            if t.missed < MAX_MISSED {
+                return true;
+            }
+            // Confirmed cones persist: all if persist_all, otherwise only track cones
+            if t.is_confirmed() && (persist_all || t.was_on_track) {
+                return true;
+            }
+            false
+        });
 
         // --- Build cone list ---
         self.cones.clear();
-        for t in &self.tracked {
+        for (ti, t) in self.tracked.iter().enumerate() {
             if t.hit_count < 2 {
                 continue;
             }
@@ -143,11 +159,21 @@ impl CoordinateSystem {
                 on_track: false,
                 side: 0,
                 is_virtual: false,
+                tracked_idx: ti,
             });
         }
 
         if self.show_pathfinding {
             self.fit_track();
+        }
+
+        // Propagate on_track back to tracked cones for persistence
+        for c in &self.cones {
+            if c.on_track && !c.is_virtual {
+                if let Some(t) = self.tracked.get_mut(c.tracked_idx) {
+                    t.was_on_track = true;
+                }
+            }
         }
     }
 

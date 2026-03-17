@@ -36,6 +36,7 @@ pub(crate) struct TrackedCone {
     pub height: f32,
     pub missed: u32,
     pub hit_count: u32,
+    pub was_on_track: bool,
 }
 
 impl TrackedCone {
@@ -46,7 +47,12 @@ impl TrackedCone {
             height: det.height,
             missed: 0,
             hit_count: 1,
+            was_on_track: false,
         }
+    }
+
+    pub fn is_confirmed(&self) -> bool {
+        self.hit_count >= 2
     }
 }
 
@@ -60,4 +66,5 @@ pub struct ConePosition {
     pub on_track: bool,
     pub side: i8, // -1 right, 0 unknown, 1 left
     pub is_virtual: bool,
+    pub(crate) tracked_idx: usize,
 }
