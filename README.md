@@ -15,6 +15,7 @@ Real-time traffic cone detection and track boundary fitting using a Livox HAP Li
 - **Center line computation** from matched left/right boundary pairs
 - **Real-time 3D viewer** with camera controls and toggle overlays
 - **Cone tracking** with exponential smoothing across frames
+- **Cone persistence** -- confirmed cones survive missed detections (LiDAR scan pattern artifacts), toggleable between track-only and all cones
 
 ## Requirements
 
@@ -66,6 +67,7 @@ The viewer window opens automatically. The system connects to the LiDAR, starts 
 | **C** | Toggle cone detection overlay |
 | **B** | Toggle pathfinding (track boundaries) |
 | **V** | Toggle virtual cone interpolation |
+| **G** | Toggle cone persistence (`TRACK` = only track cones / `ALL` = all confirmed cones) |
 | **F** | Toggle auto-center camera |
 
 ### Toggle Dependencies
@@ -81,6 +83,13 @@ Cones (C) --> Pathfinding (B) --> Virtual Cones (V)
 - Disabling **C** automatically disables **B** and **V**
 - Disabling **B** automatically disables **V**
 
+### Cone Persistence (G)
+
+Since the car is stationary during detection, missed cones are almost always caused by the LiDAR's non-repetitive scan pattern -- not because the cone disappeared. Confirmed cones (seen at least twice) are kept permanently:
+
+- **G TRACK** (default): Only cones that were part of the track boundary persist
+- **G ALL**: All confirmed cones persist, including off-track outliers
+
 ## Architecture
 
 ```
@@ -90,13 +99,13 @@ src/
   point.rs                 -- Point3D type
   viewer.rs                -- Real-time 3D renderer (minifb)
   coordinates/
-    mod.rs                 -- CoordinateSystem: tracking, update, toggles
+    mod.rs                 -- CoordinateSystem: tracking, update, toggles, persistence
     types.rs               -- ConePosition, TrackedCone, constants
     graph.rs               -- KNN graph construction
     pathfind.rs            -- DFS path search, start cone selection
     extensions.rs          -- Forward extension, cross-track guided extension
     fitting.rs             -- Track fitting pipeline (orchestrates all steps)
-    persistence.rs         -- Track stability, reconstruction, virtual cones
+    persistence.rs         -- Track stability, reconstruction, virtual cones, cone persistence
     conflicts.rs           -- Left/right conflict resolution, path validation
     cost.rs                -- Path cost function, track overlap, width estimation
   hap/
