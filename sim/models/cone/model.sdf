@@ -1,0 +1,142 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <!--
+    Formula Student traffic cone.
+    Height: 0.325 m   Base radius: 0.145 m   Tip radius: ~0 m
+
+    Visual: 15-section cylinder approximation gives a smooth taper.
+    Collision: single cylinder (averaged frustum).
+
+    Section heights and radii computed from linear taper:
+      r(i) = 0.145 - 0.127 * (i + 0.5) / 15    (i = 0 … 14)
+      z(i) = (i + 0.5) * (0.325 / 15)
+    Sections 4 and 10 are white reflective stripes.
+  -->
+  <model name="traffic_cone">
+    <static>true</static>
+    <link name="link">
+
+      <!-- ── Collision ──────────────────────────────────────────────────── -->
+      <collision name="col">
+        <pose>0 0 0.1625 0 0 0</pose>
+        <geometry>
+          <cylinder><radius>0.085</radius><length>0.325</length></cylinder>
+        </geometry>
+      </collision>
+
+      <!-- ── Base plate ────────────────────────────────────────────────── -->
+      <visual name="base">
+        <pose>0 0 0.015 0 0 0</pose>
+        <geometry><cylinder><radius>0.145</radius><length>0.030</length></cylinder></geometry>
+        <material><ambient>0.95 0.35 0.0 1</ambient><diffuse>0.95 0.35 0.0 1</diffuse></material>
+      </visual>
+
+      <!-- ── Cone body – 15 sections ───────────────────────────────────── -->
+      <!-- i=0  z=0.011  r=0.141  orange -->
+      <visual name="s00">
+        <pose>0 0 0.011 0 0 0</pose>
+        <geometry><cylinder><radius>0.141</radius><length>0.022</length></cylinder></geometry>
+        <material><ambient>0.95 0.35 0.0 1</ambient><diffuse>0.95 0.35 0.0 1</diffuse></material>
+      </visual>
+
+      <!-- i=1  z=0.033  r=0.132  orange -->
+      <visual name="s01">
+        <pose>0 0 0.033 0 0 0</pose>
+        <geometry><cylinder><radius>0.132</radius><length>0.022</length></cylinder></geometry>
+        <material><ambient>0.95 0.35 0.0 1</ambient><diffuse>0.95 0.35 0.0 1</diffuse></material>
+      </visual>
+
+      <!-- i=2  z=0.054  r=0.124  orange -->
+      <visual name="s02">
+        <pose>0 0 0.054 0 0 0</pose>
+        <geometry><cylinder><radius>0.124</radius><length>0.022</length></cylinder></geometry>
+        <material><ambient>0.95 0.35 0.0 1</ambient><diffuse>0.95 0.35 0.0 1</diffuse></material>
+      </visual>
+
+      <!-- i=3  z=0.076  r=0.115  orange -->
+      <visual name="s03">
+        <pose>0 0 0.076 0 0 0</pose>
+        <geometry><cylinder><radius>0.115</radius><length>0.022</length></cylinder></geometry>
+        <material><ambient>0.95 0.35 0.0 1</ambient><diffuse>0.95 0.35 0.0 1</diffuse></material>
+      </visual>
+
+      <!-- i=4  z=0.098  r=0.107  WHITE stripe 1 -->
+      <visual name="s04">
+        <pose>0 0 0.098 0 0 0</pose>
+        <geometry><cylinder><radius>0.107</radius><length>0.022</length></cylinder></geometry>
+        <material><ambient>1.0 1.0 1.0 1</ambient><diffuse>1.0 1.0 1.0 1</diffuse></material>
+      </visual>
+
+      <!-- i=5  z=0.119  r=0.098  orange -->
+      <visual name="s05">
+        <pose>0 0 0.119 0 0 0</pose>
+        <geometry><cylinder><radius>0.098</radius><length>0.022</length></cylinder></geometry>
+        <material><ambient>0.95 0.35 0.0 1</ambient><diffuse>0.95 0.35 0.0 1</diffuse></material>
+      </visual>
+
+      <!-- i=6  z=0.141  r=0.090  orange -->
+      <visual name="s06">
+        <pose>0 0 0.141 0 0 0</pose>
+        <geometry><cylinder><radius>0.090</radius><length>0.022</length></cylinder></geometry>
+        <material><ambient>0.95 0.35 0.0 1</ambient><diffuse>0.95 0.35 0.0 1</diffuse></material>
+      </visual>
+
+      <!-- i=7  z=0.163  r=0.082  orange -->
+      <visual name="s07">
+        <pose>0 0 0.163 0 0 0</pose>
+        <geometry><cylinder><radius>0.082</radius><length>0.022</length></cylinder></geometry>
+        <material><ambient>0.95 0.35 0.0 1</ambient><diffuse>0.95 0.35 0.0 1</diffuse></material>
+      </visual>
+
+      <!-- i=8  z=0.184  r=0.073  orange -->
+      <visual name="s08">
+        <pose>0 0 0.184 0 0 0</pose>
+        <geometry><cylinder><radius>0.073</radius><length>0.022</length></cylinder></geometry>
+        <material><ambient>0.95 0.35 0.0 1</ambient><diffuse>0.95 0.35 0.0 1</diffuse></material>
+      </visual>
+
+      <!-- i=9  z=0.206  r=0.065  orange -->
+      <visual name="s09">
+        <pose>0 0 0.206 0 0 0</pose>
+        <geometry><cylinder><radius>0.065</radius><length>0.022</length></cylinder></geometry>
+        <material><ambient>0.95 0.35 0.0 1</ambient><diffuse>0.95 0.35 0.0 1</diffuse></material>
+      </visual>
+
+      <!-- i=10 z=0.228  r=0.056  WHITE stripe 2 -->
+      <visual name="s10">
+        <pose>0 0 0.228 0 0 0</pose>
+        <geometry><cylinder><radius>0.056</radius><length>0.022</length></cylinder></geometry>
+        <material><ambient>1.0 1.0 1.0 1</ambient><diffuse>1.0 1.0 1.0 1</diffuse></material>
+      </visual>
+
+      <!-- i=11 z=0.249  r=0.048  orange -->
+      <visual name="s11">
+        <pose>0 0 0.249 0 0 0</pose>
+        <geometry><cylinder><radius>0.048</radius><length>0.022</length></cylinder></geometry>
+        <material><ambient>0.95 0.35 0.0 1</ambient><diffuse>0.95 0.35 0.0 1</diffuse></material>
+      </visual>
+
+      <!-- i=12 z=0.271  r=0.039  orange -->
+      <visual name="s12">
+        <pose>0 0 0.271 0 0 0</pose>
+        <geometry><cylinder><radius>0.039</radius><length>0.022</length></cylinder></geometry>
+        <material><ambient>0.95 0.35 0.0 1</ambient><diffuse>0.95 0.35 0.0 1</diffuse></material>
+      </visual>
+
+      <!-- i=13 z=0.293  r=0.031  orange -->
+      <visual name="s13">
+        <pose>0 0 0.293 0 0 0</pose>
+        <geometry><cylinder><radius>0.031</radius><length>0.022</length></cylinder></geometry>
+        <material><ambient>0.95 0.35 0.0 1</ambient><diffuse>0.95 0.35 0.0 1</diffuse></material>
+      </visual>
+
+      <!-- i=14 z=0.314  r=0.022  orange (tip) -->
+      <visual name="s14">
+        <pose>0 0 0.314 0 0 0</pose>
+        <geometry><cylinder><radius>0.022</radius><length>0.022</length></cylinder></geometry>
+        <material><ambient>0.95 0.35 0.0 1</ambient><diffuse>0.95 0.35 0.0 1</diffuse></material>
+      </visual>
+
+    </link>
+  </model>
+</sdf>

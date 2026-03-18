@@ -1,0 +1,363 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+<world name="fasttube_track">
+
+  <physics type="ode">
+    <real_time_update_rate>1000</real_time_update_rate>
+    <max_step_size>0.001</max_step_size>
+  </physics>
+
+  <light name="sun" type="directional">
+    <cast_shadows>true</cast_shadows>
+    <pose>0 0 20 0 0 0</pose>
+    <diffuse>0.9 0.9 0.9 1</diffuse>
+    <specular>0.2 0.2 0.2 1</specular>
+    <direction>-0.5 0.1 -0.9</direction>
+  </light>
+
+  <model name="ground">
+    <static>true</static>
+    <link name="link">
+      <collision name="col">
+        <geometry><plane><normal>0 0 1</normal><size>200 200</size></plane></geometry>
+      </collision>
+      <visual name="vis">
+        <geometry><plane><normal>0 0 1</normal><size>200 200</size></plane></geometry>
+        <material>
+          <ambient>0.3 0.3 0.3 1</ambient>
+          <diffuse>0.4 0.4 0.4 1</diffuse>
+        </material>
+      </visual>
+    </link>
+  </model>
+
+  <!-- Vehicle / LiDAR origin marker -->
+  <model name="vehicle">
+    <static>true</static>
+    <pose>0.000 0.000 0 0 0 1.5708</pose>
+    <link name="body">
+      <!-- Car body: 1.8 m long, 1.0 m wide, 0.4 m tall → top at z=0.4 -->
+      <visual name="chassis">
+        <pose>0 0 0.2 0 0 0</pose>
+        <geometry><box><size>1.8 1.0 0.4</size></box></geometry>
+        <material><ambient>0.1 0.1 0.8 1</ambient><diffuse>0.1 0.1 0.8 1</diffuse></material>
+      </visual>
+      <!-- LiDAR mount bracket on roof -->
+      <visual name="lidar_mount">
+        <pose>0 0 0.43 0 0 0</pose>
+        <geometry><cylinder><radius>0.04</radius><length>0.06</length></cylinder></geometry>
+        <material><ambient>0.3 0.3 0.3 1</ambient><diffuse>0.3 0.3 0.3 1</diffuse></material>
+      </visual>
+      <!-- LiDAR sensor: sphere resting on mount, centre at z=0.5 = LIDAR_HEIGHT -->
+      <visual name="lidar_sensor">
+        <pose>0 0 0.5 0 0 0</pose>
+        <geometry><sphere><radius>0.05</radius></sphere></geometry>
+        <material><ambient>1 1 0 1</ambient><diffuse>1 1 0 1</diffuse></material>
+      </visual>
+    </link>
+  </model>
+
+  <!-- 30 cone pairs | lateral ±1.5 m | spacing 1.5 m -->
+  <include>
+    <name>cone_left_00</name>
+    <uri>model://cone</uri>
+    <pose>3.000 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_00</name>
+    <uri>model://cone</uri>
+    <pose>3.000 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_01</name>
+    <uri>model://cone</uri>
+    <pose>4.500 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_01</name>
+    <uri>model://cone</uri>
+    <pose>4.500 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_02</name>
+    <uri>model://cone</uri>
+    <pose>6.000 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_02</name>
+    <uri>model://cone</uri>
+    <pose>6.000 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_03</name>
+    <uri>model://cone</uri>
+    <pose>7.500 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_03</name>
+    <uri>model://cone</uri>
+    <pose>7.500 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_04</name>
+    <uri>model://cone</uri>
+    <pose>9.000 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_04</name>
+    <uri>model://cone</uri>
+    <pose>9.000 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_05</name>
+    <uri>model://cone</uri>
+    <pose>10.500 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_05</name>
+    <uri>model://cone</uri>
+    <pose>10.500 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_06</name>
+    <uri>model://cone</uri>
+    <pose>12.000 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_06</name>
+    <uri>model://cone</uri>
+    <pose>12.000 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_07</name>
+    <uri>model://cone</uri>
+    <pose>13.500 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_07</name>
+    <uri>model://cone</uri>
+    <pose>13.500 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_08</name>
+    <uri>model://cone</uri>
+    <pose>15.000 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_08</name>
+    <uri>model://cone</uri>
+    <pose>15.000 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_09</name>
+    <uri>model://cone</uri>
+    <pose>16.500 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_09</name>
+    <uri>model://cone</uri>
+    <pose>16.500 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_10</name>
+    <uri>model://cone</uri>
+    <pose>18.000 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_10</name>
+    <uri>model://cone</uri>
+    <pose>18.000 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_11</name>
+    <uri>model://cone</uri>
+    <pose>19.500 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_11</name>
+    <uri>model://cone</uri>
+    <pose>19.500 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_12</name>
+    <uri>model://cone</uri>
+    <pose>21.000 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_12</name>
+    <uri>model://cone</uri>
+    <pose>21.000 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_13</name>
+    <uri>model://cone</uri>
+    <pose>22.500 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_13</name>
+    <uri>model://cone</uri>
+    <pose>22.500 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_14</name>
+    <uri>model://cone</uri>
+    <pose>24.000 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_14</name>
+    <uri>model://cone</uri>
+    <pose>24.000 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_15</name>
+    <uri>model://cone</uri>
+    <pose>25.500 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_15</name>
+    <uri>model://cone</uri>
+    <pose>25.500 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_16</name>
+    <uri>model://cone</uri>
+    <pose>27.000 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_16</name>
+    <uri>model://cone</uri>
+    <pose>27.000 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_17</name>
+    <uri>model://cone</uri>
+    <pose>28.500 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_17</name>
+    <uri>model://cone</uri>
+    <pose>28.500 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_18</name>
+    <uri>model://cone</uri>
+    <pose>30.000 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_18</name>
+    <uri>model://cone</uri>
+    <pose>30.000 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_19</name>
+    <uri>model://cone</uri>
+    <pose>31.500 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_19</name>
+    <uri>model://cone</uri>
+    <pose>31.500 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_20</name>
+    <uri>model://cone</uri>
+    <pose>33.000 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_20</name>
+    <uri>model://cone</uri>
+    <pose>33.000 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_21</name>
+    <uri>model://cone</uri>
+    <pose>34.500 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_21</name>
+    <uri>model://cone</uri>
+    <pose>34.500 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_22</name>
+    <uri>model://cone</uri>
+    <pose>36.000 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_22</name>
+    <uri>model://cone</uri>
+    <pose>36.000 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_23</name>
+    <uri>model://cone</uri>
+    <pose>37.500 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_23</name>
+    <uri>model://cone</uri>
+    <pose>37.500 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_24</name>
+    <uri>model://cone</uri>
+    <pose>39.000 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_24</name>
+    <uri>model://cone</uri>
+    <pose>39.000 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_25</name>
+    <uri>model://cone</uri>
+    <pose>40.500 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_25</name>
+    <uri>model://cone</uri>
+    <pose>40.500 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_26</name>
+    <uri>model://cone</uri>
+    <pose>42.000 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_26</name>
+    <uri>model://cone</uri>
+    <pose>42.000 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_27</name>
+    <uri>model://cone</uri>
+    <pose>43.500 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_27</name>
+    <uri>model://cone</uri>
+    <pose>43.500 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_28</name>
+    <uri>model://cone</uri>
+    <pose>45.000 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_28</name>
+    <uri>model://cone</uri>
+    <pose>45.000 -1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_left_29</name>
+    <uri>model://cone</uri>
+    <pose>46.500 1.500 0 0 0 0</pose>
+  </include>
+  <include>
+    <name>cone_right_29</name>
+    <uri>model://cone</uri>
+    <pose>46.500 -1.500 0 0 0 0</pose>
+  </include>
+
+</world>
+</sdf>
